@@ -1,0 +1,188 @@
+@startuml
+
+top to bottom direction
+skinparam linetype ortho
+
+annotation Entity << annotation >> {
+  + name(): String
+}
+class OrganizationMember {
+  - memberid: String
+  - individualizedProgram: Boolean
+  - changed: Timestamp
+  - stateId: String
+  - birthDate: Date
+  - grade: OrganizationGrade
+  - hispanicOrLatino: Boolean
+  - sisId: String
+  - created: Timestamp
+  - race: OrganizationMemberRace
+  - roleChanged: Timestamp
+  - syncEnabled: Boolean
+  - gender: OrganizationMemberGender
+  - lunchStatus: OrganizationMemberLunchStatus
+  - firstName: String
+  - organization: Organization
+  - isDeleted: Boolean
+  - addedBy: String
+  - id: UUID
+  - role: OrganizationMemberRole
+  - englishLanguageLearner: Boolean
+  - lastName: String
+  + setBirthDate(Date): void
+  + setOrganization(Organization): void
+  + getId(): UUID
+  + setSyncEnabled(Boolean): void
+  + getStateId(): String
+  + setHispanicOrLatino(Boolean): void
+  + setSisId(String): void
+  + getGrade(): OrganizationGrade
+  + getMemberid(): String
+  + setLunchStatus(OrganizationMemberLunchStatus): void
+  + setDeleted(Boolean): void
+  + setCreated(Timestamp): void
+  + isDeleted(): Boolean
+  + setStateId(String): void
+  + getLunchStatus(): OrganizationMemberLunchStatus
+  + setRoleChanged(Timestamp): void
+  + setChanged(Timestamp): void
+  + setGrade(OrganizationGrade): void
+  + setMemberid(String): void
+  + getSisId(): String
+  + getGender(): OrganizationMemberGender
+  + getHispanicOrLatino(): Boolean
+  + setAddedBy(String): void
+  + isStudent(): boolean
+  + getRoleChanged(): Timestamp
+  + getEnglishLanguageLearner(): Boolean
+  + getLastName(): String
+  + setRace(OrganizationMemberRace): void
+  + setLastName(String): void
+  + isAdministrator(): boolean
+  + getSyncEnabled(): Boolean
+  + getAddedBy(): String
+  + getCreated(): Timestamp
+  + getRole(): OrganizationMemberRole
+  + getChanged(): Timestamp
+  + getIndividualizedProgram(): Boolean
+  + setIndividualizedProgram(Boolean): void
+  + setFirstName(String): void
+  + setRole(OrganizationMemberRole): void
+  + setGender(OrganizationMemberGender): void
+  + setEnglishLanguageLearner(Boolean): void
+  + getFirstName(): String
+  + getBirthDate(): Date
+  + getRace(): OrganizationMemberRace
+  + getOrganization(): Organization
+  + isFaculty(): boolean
+  + setId(UUID): void
+}
+class ReadReadyMemberInefficientDecoding {
+  - averageRealWordTime: Long
+  - averagePseudoHomophoneTime: Long
+  - averageNonWordTime: Long
+  - inefficientDecodingFlag: ReadReadyInefficientDecodingFlag
+  - id: UUID
+  - testExecution: ReadReadyTestExecution
+  - memberId: UUID
+  + getAverageRealWordTime(): Long
+  + setInefficientDecodingFlag(ReadReadyInefficientDecodingFlag): void
+  + setAveragePseudoHomophoneTime(Long): void
+  + setTestExecution(ReadReadyTestExecution): void
+  + setAverageNonWordTime(Long): void
+  + setMemberId(UUID): void
+  + getMemberId(): UUID
+  + getInefficientDecodingFlag(): ReadReadyInefficientDecodingFlag
+  + getAveragePseudoHomophoneTime(): Long
+  + setAverageRealWordTime(Long): void
+  + getTestExecution(): ReadReadyTestExecution
+  + getAverageNonWordTime(): Long
+  + getId(): UUID
+  + setId(UUID): void
+}
+class ReadReadyTestScore {
+  - scaleScore: BigDecimal
+  - numCorrect: Integer
+  - algorithmVersion: String
+  - averageGrade: Integer
+  - percentile: Integer
+  - id: UUID
+  - changed: Timestamp
+  - totalTime: Long
+  - execution: ReadReadyTestExecution
+  - rushed: Boolean
+  - memberId: UUID
+  - operationalTime: Long
+  - recognitionDifficulty: ReadReadyDifficulty
+  - numOmit: Integer
+  - numAnswered: Integer
+  - technicalUpdate: Timestamp
+  - percentAnswered: Integer
+  - created: Timestamp
+  - skill: ReadReadySkill
+  - scoreSe: BigDecimal
+  - percentCorrect: Integer
+  + setChanged(Timestamp): void
+  + getPercentAnswered(): Integer
+  + setExecution(ReadReadyTestExecution): void
+  + setScoreSe(BigDecimal): void
+  + setCreated(Timestamp): void
+  + getPercentCorrect(): Integer
+  + setAlgorithmVersion(String): void
+  + getMemberId(): UUID
+  + getPercentile(): Integer
+  + getRecognitionDifficulty(): ReadReadyDifficulty
+  + getAlgorithmVersion(): String
+  + setId(UUID): void
+  + setScoreFlag(TestScoreFlag): void
+  + setMemberId(UUID): void
+  + getNumAnswered(): Integer
+  + getSkill(): ReadReadySkill
+  + getCreated(): Timestamp
+  + setOperationalTime(Long): void
+  + setScaleScore(BigDecimal): void
+  + setAverageGrade(Integer): void
+  + setRushed(Boolean): void
+  + getTechnicalUpdate(): Timestamp
+  + setTechnicalUpdate(Timestamp): void
+  + setPercentCorrect(Integer): void
+  + setTotalTime(Long): void
+  + getChanged(): Timestamp
+  + setNumAnswered(Integer): void
+  + getAverageGrade(): Integer
+  + setRecognitionDifficulty(ReadReadyDifficulty): void
+  + setSkill(ReadReadySkill): void
+  + setPercentile(Integer): void
+  + getId(): UUID
+  + getRoundedScaleScore(): Integer
+  + getExecution(): ReadReadyTestExecution
+  + getNumCorrect(): Integer
+  + getScoreFlag(): TestScoreFlag
+  + getTotalTime(): Long
+  + getScaleScore(): BigDecimal
+  + getNumOmit(): Integer
+  + setNumOmit(Integer): void
+  + setNumCorrect(Integer): void
+  + isRushed(): Boolean
+  + getScoreSe(): BigDecimal
+  + setPercentAnswered(Integer): void
+  + getOperationalTime(): Long
+}
+interface Serializable << interface >>
+annotation Table << annotation >> {
+  + name(): String
+  + catalog(): String
+  + schema(): String
+  + uniqueConstraints(): UniqueConstraint[]
+}
+
+OrganizationMember                  -[#999900,dotted]-  Entity                             
+OrganizationMember                  -[#008200,dashed]-^  Serializable                       
+OrganizationMember                  -[#999900,dotted]-  Table                              
+ReadReadyMemberInefficientDecoding  -[#999900,dotted]-  Entity                             
+ReadReadyMemberInefficientDecoding  -[#008200,dashed]-^  Serializable                       
+ReadReadyMemberInefficientDecoding  -[#999900,dotted]-  Table                              
+ReadReadyTestScore                  -[#999900,dotted]-  Entity                             
+ReadReadyTestScore                  -[#008200,dashed]-^  Serializable                       
+ReadReadyTestScore                  -[#999900,dotted]-  Table                              
+@enduml

@@ -1,0 +1,239 @@
+@startuml
+' ==========================================================
+' Domain Model (Assessment Core) — standalone
+' Compilable in editor.plantuml.com
+' Source: requirements document
+' ==========================================================
+top to bottom direction
+skinparam linetype ortho
+
+hide circle
+hide methods
+
+' ---------- Stereotypes ----------
+' <<catalog>>            — reference table (not enum)
+' <<domain>>             — core domain entity
+' <<duplicate-of-filter>>— intentionally duplicated in filter.puml
+
+' ---------- Enumerations & Catalogs ----------
+package "Enumerations & Catalogs" {
+  enum OrganizationMemberGender {
+    Male
+    Female
+    X
+  }
+
+  enum OrganizationMemberLunchStatus {
+    Free
+    Paid
+  }
+
+  enum OrganizationMemberRole {
+    Student
+    Teacher
+    "School Admin"
+    "District Admin"
+  }
+
+  ' Content is at discretion per spec
+  enum OrganizationMemberRace {
+    White
+    Black
+    Asian
+    "Native American"
+    "Pacific Islander"
+    "Two Or More"
+    Other
+  }
+
+  ' Content is at discretion per spec
+  enum OrganizationGrade {
+    K
+    G1
+    G2
+    G3
+    G4
+    G5
+    G6
+    G7
+    G8
+    G9
+    G10
+    G11
+    G12
+  }
+
+  enum ReadReadyInefficientDecodingFlag {
+    Unknown
+    TRUE
+    FALSE
+  }
+
+  enum ReadReadyDifficulty {
+    Low
+    Medium
+    High
+  }
+
+  ' Content is at discretion per spec
+  enum TestScoreFlag {
+    Valid
+    Estimated
+    Suppressed
+  }
+
+  class ReadReadySkill <<catalog>> {
+    +id: UUID
+    +name: String
+    --
+    ' Exactly six catalog rows:
+    ' 1) Word Recognition and Decoding
+    ' 2) Vocabulary
+    ' 3) Morphology
+    ' 4) Sentence Processing
+    ' 5) Reading Efficiency
+    ' 6) Reading Comprehension
+  }
+}
+
+' ---------- Core Domain ----------
+class Organization <<domain>> {
+  +id: UUID
+  +name: String
+}
+
+class OrganizationMember <<domain>> {
+  ..Identifiers..
+  +id: UUID
+  +memberId: String
+  +sisId: String
+  +stateId: String
+
+  ..Personal..
+  +firstName: String
+  +lastName: String
+
+  ..Demography..
+  +gender: OrganizationMemberGender
+  +race: OrganizationMemberRace
+  +hispanicOrLatino: Boolean
+  +birthDate: Date
+  +englishLanguageLearner: Boolean
+  +individualizedProgram: Boolean
+  +lunchStatus: OrganizationMemberLunchStatus
+
+  ..Organizational..
+  +organization: Organization
+  +grade: OrganizationGrade
+  +role: OrganizationMemberRole
+  +roleChanged: Timestamp
+  +syncEnabled: Boolean
+  +isDeleted: Boolean
+  +addedBy: String
+
+  ..Audit..
+  +created: Timestamp
+  +changed: Timestamp
+
+  ..Utilities..
+  +isStudent(): Boolean
+  +isFaculty(): Boolean
+  +isAdministrator(): Boolean
+}
+
+class ReadReadyTestExecution <<domain>> {
+  +id: UUID
+  +member: OrganizationMember
+  +executedAt: Timestamp
+  +origin: String
+  +algorithmVersion: String
+  +created: Timestamp
+  +changed: Timestamp
+}
+
+class ReadReadyTestScore <<domain>> {
+  ..Identification & links..
+  +id: UUID
+  +memberId: UUID
+  +execution: ReadReadyTestExecution
+  +skill: ReadReadySkill
+
+  ..Scores & stats..
+  +scaleScore: BigDecimal
+  +scoreSe: BigDecimal
+  +percentCorrect: Integer
+  +percentAnswered: Integer
+  +percentile: Integer
+  +numCorrect: Integer
+  +numOmit: Integer
+  +numAnswered: Integer
+  +averageGrade: Integer
+  +recognitionDifficulty: ReadReadyDifficulty
+  +rushed: Boolean
+
+  ..Algorithm/status..
+  +algorithmVersion: String
+  +technicalUpdate: Timestamp
+  +getScoreFlag(): TestScoreFlag
+  +setScoreFlag(flag: TestScoreFlag)
+
+  ..Timing..
+  +totalTime: Long
+  +operationalTime: Long
+
+  ..Audit..
+  +created: Timestamp
+  +changed: Timestamp
+
+  ..Extras..
+  +getRoundedScaleScore(): Integer
+}
+
+class ReadReadyMemberInefficientDecoding <<domain>> {
+  +id: UUID
+  +memberId: UUID
+  +testExecution: ReadReadyTestExecution
+  +inefficientDecodingFlag: ReadReadyInefficientDecodingFlag
+  +averageRealWordTime: Long
+  +averagePseudoHomophoneTime: Long
+  +averageNonWordTime: Long
+}
+
+' ---------- Associations & Multiplicities ----------
+OrganizationMember "1" *-- "1..*" ReadReadyTestExecution : executions
+ReadReadyTestExecution "1" *-- "1..*" ReadReadyTestScore  : scores
+ReadReadyTestExecution "1" *-- "0..1" ReadReadyMemberInefficientDecoding : inefficiency
+
+ReadReadyTestScore "1" --> "1" ReadReadySkill : skill
+OrganizationMember "1" --> "0..*" ReadReadyTestScore : byMember
+OrganizationMember "1" --> "0..*" ReadReadyMemberInefficientDecoding : byMember
+
+' ---------- Notes ----------
+note top of ReadReadyTestScore
+  Domain uniqueness: (memberId, execution, skill) must be unique.
+  Consistency: score.memberId == score.execution.member.id
+end note
+
+note right of ReadReadyMemberInefficientDecoding
+  Singularity: at most one record per (memberId, testExecution).
+  Dependency: if the "Word Recognition and Decoding" subtest is missing
+  for the same (memberId, testExecution),
+  set inefficientDecodingFlag = Unknown.
+end note
+
+note as Nskills
+  ReadReadySkill catalog contains exactly six records:
+  1) Word Recognition and Decoding
+  2) Vocabulary
+  3) Morphology
+  4) Sentence Processing
+  5) Reading Efficiency
+  6) Reading Comprehension
+end note
+
+ReadReadySkill .. Nskills
+
+note "All filtering operations apply only to students (member.role == Student)." as Nscope
+OrganizationMember .. Nscope
+
+@enduml

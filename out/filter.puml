@@ -1,0 +1,144 @@
+@startuml
+' ==========================================================
+' Filtering Model (RuleSet & Rules) - standalone
+' Compilable in editor.plantuml.com
+' Source: requirements document
+' ==========================================================
+top to bottom direction
+skinparam linetype ortho
+hide circle
+hide methods
+
+' ---------- Stereotypes ----------
+' <<catalog>> - reference table (not enum)
+' <<filter>>- filtering domain
+' <<from-domain>> - duplicated here for standalone compile
+
+' ---------- Enumerations & Catalogs ----------
+package "Enumerations & Catalogs" {
+
+  ' Local, filter-specific enums
+  enum Inclusion {
+    Include
+    Exclude
+  }
+
+  enum Comparator {
+    LT ' <
+    LTE ' <=
+    EQ ' =
+    GTE ' >=
+    GT ' >
+  }
+
+  enum DecodingThresholdKind {
+    "Below (score < 235)"
+    "Above (score >= 235)"
+  }
+}
+
+package "Сommon with the domain" {
+' Duplicated enums from domain for independence of this file
+  enum OrganizationGrade <<domain>> {
+    K
+    G1
+    G2
+    G3
+    G4
+    G5
+    G6
+    G7
+    G8
+    G9
+    G10
+    G11
+    G12
+  }
+
+  enum ReadReadyInefficientDecodingFlag <<domain>> {
+    Unknown
+    TRUE
+    FALSE
+  }
+
+  class ReadReadySkill <<catalog>> <<domain>> {
+    +id: UUID
+    +name: String
+    --
+    ' Expected fixed six items in the catalog (see domain model)
+  }
+
+  class OrganizationMember <<domain>> {
+    +id: UUID
+    +grade: OrganizationGrade
+    +role: String ' Student/Teacher/Admin; filtering applies only to Student
+  }
+}
+
+' ---------- Filtering Core ----------
+class RuleSet <<filter>> {
+  +id: UUID
+  +name: String
+  +created: Timestamp
+  +changed: Timestamp
+}
+
+abstract class Rule <<filter>> {
+  +id: UUID
+  +orderIndex: Integer ' Position within ordered RuleSet
+  +inclusion: Inclusion ' Include / Exclude
+  +created: Timestamp
+  +changed: Timestamp
+  --
+  ' Applies only if OrganizationMember.role == "Student"
+}
+
+class GradeRule <<filter>> {
+  +grades: Set<OrganizationGrade>
+}
+
+class ScaleScoreRule <<filter>> {
+  +comparator: Comparator
+  +value: Integer ' whole number, business-validated range
+  +skills: Set<ReadReadySkill> ' one or multiple subtests
+}
+
+class InefficientDecodingRule <<filter>> {
+  +flag: ReadReadyInefficientDecodingFlag
+}
+
+class DecodingThresholdRule <<filter>> {
+  +kind: DecodingThresholdKind
+  +skillRef: ReadReadySkill ' typically "Word Recognition and Decoding"
+}
+
+Rule <|-- GradeRule
+Rule <|-- ScaleScoreRule
+Rule <|-- InefficientDecodingRule
+Rule <|-- DecodingThresholdRule
+
+' ---------- Associations ----------
+' Ordered ownership: RuleSet owns an ordered list of Rules
+RuleSet "1" o-- "1..*" Rule : {ordered} rules
+
+' ---------- Notes ----------
+note bottom of RuleSet
+  DESIGN NOTES:
+  - RuleSet is ordered: rules are applied sequentially.
+    Early Include/Exclude decisions affect the working set;
+    reordering changes the final outcome.
+  - Persistence (PostgreSQL, conceptual):
+    * rule_set - metadata for rule sets;
+    * rule - FK(rule_set_id), integer order_index, rule_type discriminator;
+      subtype-specific fields either in same table (STI) or per subtype (TPT).
+end note
+
+note right of ScaleScoreRule
+  If multiple subtests are selected in skills,
+  the threshold comparator applies to all selected subtests.
+end note
+
+note "Filtering applies only to students (OrganizationMember.role == 'Student')." as Nscope2
+RuleSet .. Nscope2
+
+@enduml

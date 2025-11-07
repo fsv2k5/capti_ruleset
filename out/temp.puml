@@ -1,0 +1,284 @@
+@startuml
+
+top to bottom direction
+skinparam linetype ortho
+
+package "Assessment Domain" as Assessment {
+
+  class OrganizationMember {
+    +memberId: String
+    +role: OrganizationMemberRole
+    +grade: OrganizationGrade
+    +englishLanguageLearner: Boolean
+    +latestExecution(): ReadReadyTestExecution
+    +latestScores(): List<ReadReadyTestScore>
+    +inefficientDecoding(): ReadReadyMemberInefficientDecoding
+    +isStudent(): boolean
+  }
+
+  enum OrganizationMemberRole {
+    Student
+    Faculty
+    Administrator
+  }
+
+  enum OrganizationGrade {
+    PK
+    K
+    G1..G12
+  }
+
+  class ReadReadyTestExecution {
+    +id: UUID
+    +administeredAt: Timestamp
+    +totalTime: Long
+    +memberId: UUID
+    +status: ExecutionStatus
+  }
+
+  enum ExecutionStatus {
+    COMPLETED
+    IN_PROGRESS
+    INVALIDATED
+  }
+
+  class ReadReadyTestScore {
+    +id: UUID
+    +skill: ReadReadySkill
+    +scaleScore: BigDecimal
+    +percentile: Integer
+    +scoreFlag: TestScoreFlag
+    +created: Timestamp
+  }
+
+  enum ReadReadySkill {
+    "Word Recognition and Decoding"
+    Vocabulary
+    Observing
+    Reasoning
+  }
+
+  enum TestScoreFlag {
+    RUSHED
+    INSUFFICIENT_RESPONSES
+    VALID
+  }
+
+  class ReadReadyMemberInefficientDecoding {
+    +id: UUID
+    +flag: ReadReadyInefficientDecodingFlag
+    +averageRealWordTime: Long
+    +averageNonWordTime: Long
+    +dependentSkill: ReadReadySkill = "Word Recognition and Decoding"
+  }
+
+  enum ReadReadyInefficientDecodingFlag {
+    PASS
+    FAIL
+    UNKNOWN
+  }
+}
+
+package "Filtering Domain" as Filtering {
+
+  class StudentPopulation {
+    +students: List<OrganizationMember>
+    +latestSnapshot(): List<OrganizationMember>
+  }
+
+  class RuleSet {
+    +id: UUID
+    +name: String
+    +gradeRange: GradeRange
+    +rules: List<Rule>
+    +skillThresholds: List<ScaleScoreThreshold>
+    +apply(StudentPopulation): List<OrganizationMember>
+  }
+
+  class Rule {
+    +id: UUID
+    +name: String
+    +order: Integer
+    +action: RuleAction
+    +condition: RuleCondition
+    +stopEvaluatingOnMatch: Boolean
+    +matches(FilterContext): boolean
+  }
+
+  enum RuleAction {
+    INCLUDE
+    EXCLUDE
+  }
+
+  interface RuleCondition {
+    +isSatisfied(FilterContext): boolean
+  }
+
+  class ConditionGroup {
+    +operator: LogicalOperator
+    +conditions: List<RuleCondition>
+  }
+
+  enum LogicalOperator {
+    AND
+    OR
+  }
+
+  class ScaleScoreThresholdCondition {
+    +thresholds: List<ScaleScoreThreshold>
+    +requireAllSubtests: Boolean
+  }
+
+  class InefficientDecodingCondition {
+    +requiredFlag: ReadReadyInefficientDecodingFlag
+    +treatUnknownAsFail: Boolean
+  }
+
+  class GradeCondition {
+    +allowedGrades: Set<OrganizationGrade>
+  }
+
+  class ScaleScoreThreshold {
+    +skill: ReadReadySkill
+    +minPercentile: Integer
+    +minScaleScore: BigDecimal
+    +comparison: ComparisonOperator = GREATER_OR_EQUAL
+    +timeWindowDays: Integer
+  }
+
+  enum ComparisonOperator {
+    GREATER_THAN
+    GREATER_OR_EQUAL
+    LESS_THAN
+    LESS_OR_EQUAL
+  }
+
+  class GradeRange {
+    +from: OrganizationGrade
+    +to: OrganizationGrade
+    +contains(OrganizationMember): boolean
+  }
+
+  class FilterContext {
+    +member: OrganizationMember
+    +latestExecution: ReadReadyTestExecution
+    +scoresBySkill(skill): ReadReadyTestScore
+    +inefficientDecoding: ReadReadyMemberInefficientDecoding
+  }
+
+  class StudentFilterService {
+    +evaluate(RuleSet, StudentPopulation): FilterResult
+    +buildContext(OrganizationMember): FilterContext
+    -sortRulesByOrder(List<Rule>): List<Rule>
+    -applyRule(Rule, FilterContext, FilterResult): void
+  }
+
+  class FilterResult {
+    +includedStudents: List<OrganizationMember>
+    +excludedStudents: List<OrganizationMember>
+    +ruleDecisions: Map<Rule, RuleAction>
+  }
+}
+
+Assessment.OrganizationMember "1" o-- "1..*" Assessment.ReadReadyTestExecution : executions
+Assessment.ReadReadyTestExecution "1" o-- "1..*" Assessment.ReadReadyTestScore : subtestScores
+Assessment.ReadReadyTestScore "*" --> "1" Assessment.ReadReadySkill
+Assessment.OrganizationMember "1" o-- "0..*" Assessment.ReadReadyMemberInefficientDecoding : decodingHistory
+Assessment.ReadReadyTestExecution "1" o-- "0..1" Assessment.ReadReadyMemberInefficientDecoding : executionFlag
+
+Filtering.RuleSet "1" o-- "1..*" Filtering.Rule : ordered rules
+Filtering.Rule --> Filtering.RuleAction
+Filtering.Rule --> Filtering.RuleCondition
+Filtering.ConditionGroup ..|> Filtering.RuleCondition
+Filtering.ScaleScoreThresholdCondition ..|> Filtering.RuleCondition
+Filtering.InefficientDecodingCondition ..|> Filtering.RuleCondition
+Filtering.GradeCondition ..|> Filtering.RuleCondition
+Filtering.ConditionGroup "1" o-- "*" Filtering.RuleCondition
+Filtering.ScaleScoreThresholdCondition "1" o-- "*" Filtering.ScaleScoreThreshold
+Filtering.RuleSet "1" o-- "*" Filtering.ScaleScoreThreshold
+Filtering.StudentFilterService --> Filtering.RuleSet
+Filtering.StudentFilterService --> Filtering.StudentPopulation
+Filtering.StudentFilterService --> Filtering.FilterResult
+Filtering.StudentFilterService --> Filtering.FilterContext
+Filtering.FilterContext --> Assessment.OrganizationMember
+Filtering.FilterContext --> Assessment.ReadReadyTestExecution
+Filtering.FilterContext --> Assessment.ReadReadyTestScore
+Filtering.FilterContext --> Assessment.ReadReadyMemberInefficientDecoding
+Filtering.RuleSet --> Filtering.GradeRange
+Filtering.GradeCondition --> Assessment.OrganizationGrade
+Filtering.StudentPopulation --> Assessment.OrganizationMember
+
+note right of Filtering.Rule
+  Ordered evaluation ensures deterministic outcomes:
+  earlier rules can INCLUDE or EXCLUDE before later ones run.
+  The first matching rule applies its action (Include/Exclude),
+  subsequent rules continue only if the action is INCLUDE
+  so later conditions can tighten the cohort without re-adding
+  previously excluded students.
+end note
+
+note bottom of Filtering.InefficientDecodingCondition
+  Depends on the Inefficient Decoding flag.
+  If the latest "Word Recognition and Decoding"
+  subtest score is missing, the flag defaults to UNKNOWN,
+  making the rule treat the student according to
+  treatUnknownAsFail.
+end note
+
+note bottom of Filtering.StudentPopulation
+  Population source already filters by member.role == Student.
+  Faculty and Administrator records are never materialized here.
+  Snapshots provide stable input for deterministic rule evaluation.
+end note
+
+note bottom of Filtering.ScaleScoreThresholdCondition
+  Evaluates ReadReadySkill subtests using the provided thresholds.
+  requireAllSubtests enforces AND semantics; otherwise thresholds are ORed.
+  Missing scores fail the condition unless a Rule declares INCLUDE action.
+end note
+
+note right of Filtering.ConditionGroup
+  Allows nesting of multiple RuleCondition instances
+  with explicit AND/OR semantics within the same Rule.
+end note
+
+note bottom of Filtering.StudentFilterService
+  Service applies gradeRange first, then iterates rules in order.
+  INCLUDE decisions push the student to the result set immediately.
+  EXCLUDE short-circuits evaluation and records the responsible rule.
+end note
+
+note bottom of Filtering.FilterResult
+  Contains both included/excluded cohorts plus a decision audit trail.
+  ruleDecisions helps explain why a student passed or failed filtering.
+end note
+
+note bottom of Assessment.ReadReadyTestScore
+  Domain uniqueness constraint: (memberId, execution, skill).
+  Every score must reference the same member as its execution.
+end note
+
+note bottom of Assessment.ReadReadyMemberInefficientDecoding
+  Singularity per (memberId, testExecution); zero or more per student.
+  When the Word Recognition and Decoding score is missing,
+  inefficientDecodingFlag is forced to UNKNOWN.
+end note
+
+note bottom of Assessment.ReadReadyTestExecution
+  Each OrganizationMember (student) owns one or more executions,
+  and every execution belongs to exactly one student.
+end note
+
+note top of Assessment.OrganizationMember
+  All assessment and filtering operations apply exclusively
+  to members whose role == Student.
+end note
+
+note right of Filtering.RuleSet
+  Storage strategy (PostgreSQL, high-level): persist RuleSet metadata
+  with a JSONB column holding ordered rule IDs. Each Rule row stores
+  its condition payload as JSONB plus scalar columns (action, grade range,
+  thresholds). An indexed (rule_set_id, order) column keeps evaluation order stable.
+end note
+
+@enduml
